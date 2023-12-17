@@ -1,4 +1,6 @@
+using HNWebService.Services;
 using Microsoft.OpenApi.Models;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,12 +9,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
+
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "HNWebService", Version = "v1" });
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    c.IncludeXmlComments(xmlPath);
 });
-// Add Distribution cache mechanism 
-builder.Services.AddDistributedMemoryCache(); // Use appropriate distributed cache service
+// Add Distribution cache mechanism
+builder.Services.AddDistributedMemoryCache(); 
 
 builder.Services.AddHttpClient<HNApiService>(client =>
 {
@@ -33,9 +39,11 @@ if (app.Environment.IsDevelopment())
     });
     }
 
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
+app.UseRouting();
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllers(); 
+});
 
 app.MapControllers();
 

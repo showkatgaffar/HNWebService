@@ -1,17 +1,81 @@
-﻿public class HNApiService
-    {
-    private readonly HttpClient _httpClient;
-    private const string BaseUrl = "https://hacker-news.firebaseio.com/v0/";
+﻿using HNWebService.Models;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Collections.Concurrent;
+using System.Text.Json;
 
-    public HNApiService(HttpClient httpClient)
+namespace HNWebService.Services
+    {
+    /// <summary>
+    /// Service for interacting with the Hacker News API.
+    /// </summary>
+    public class HNApiService
         {
-        _httpClient = httpClient;
-        }
-    // API to get latest stories from Hacker News API
-    public async Task<List<int>> GetTopStoriesAsync()
-        {
-        var response = await _httpClient.GetFromJsonAsync<List<int>>(BaseUrl + "topstories.json");
-        return response ?? new List<int>();
+        private readonly IDistributedCache _cache;
+        private readonly HttpClient _httpClient;
+        /// <summary>
+        /// Injeting the HttpClient service to make the https requests to Hacker News API's
+        /// </summary>
+        public HNApiService(HttpClient httpClient, IDistributedCache cache)
+            {
+            _httpClient = httpClient;
+            _cache = cache;
+            }   
+
+        /// <summary>
+        /// Get newest stories from Hacker News API asynchronously.
+        /// </summary>
+        public async Task<NewestStoriesModel[]> GetNewestStories()
+            {
+            try
+                {
+                // defining cache key 
+                const string cacheKey = "NewestItemsCacheKey";
+
+                // get cached item if present
+                var cachedItems = await _cache.GetStringAsync(cacheKey);
+
+                // if cached item is not null then data is returned from cache otherwise api is called to fetch data 
+                if (!string.IsNullOrEmpty(cachedItems))
+                    {
+                    return JsonSerializer.Deserialize<NewestStoriesModel[]>(cachedItems);
+                    }
+                else
+                    {
+                    // get newstories id from this api
+                    var response = await _httpClient.GetStreamAsync($"{_httpClient.BaseAddress}newstories.json");
+                    var newestItemsIds = await JsonSerializer.DeserializeAsync<int[]>(response);
+
+                    var newestItems = new List<NewestStoriesModel>();
+                    var options = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount };
+                    await Task.WhenAll(newestItemsIds.Select(async itemId =>
+                    {
+                        var item = await GetHackerNewsItemByIdAsync(itemId);
+                        newestItems.Add(item);
+                    }));
+
+                    var itemsArray = newestItems.ToArray();
+
+                    // setup the data in cache at first instance 
+                    await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(itemsArray), new DistributedCacheEntryOptions
+                        {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10) // Set cache expiration time
+                        });
+
+                    return itemsArray;
+                    }
+                } catch(Exception ex)
+                {
+                      throw new Exception(ex.Message);
+                }
+            
+            }
+        /// <summary>
+        /// Get Get story details by item id.
+        /// </summary>
+        public async Task<NewestStoriesModel> GetHackerNewsItemByIdAsync(int itemId)
+            {
+            var response = await _httpClient.GetFromJsonAsync<NewestStoriesModel>($"item/{itemId}.json");
+            return response;
+            }
         }
     }
-
