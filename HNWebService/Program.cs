@@ -19,16 +19,28 @@ builder.Services.AddSwaggerGen(c =>
     c.IncludeXmlComments(xmlPath);
 });
 
-builder.Services.AddTransient<IHNApiService, HNApiService>();
+// added singleton dependency injection
+builder.Services.AddSingleton<IHNApiService, HNApiService>();
 
 // Read BaseUrls from appsettings.json and configure as a singleton service
 var baseUrls = new BaseUrls();
 builder.Configuration.GetSection("BaseUrls").Bind(baseUrls);
+// added singleton dependency injection
 builder.Services.AddSingleton(baseUrls);
 
+// added Distributed Memory Cache 
 builder.Services.AddDistributedMemoryCache();
+// added Distributed Memory Cache 
 builder.Services.AddHttpClient();
 
+// added cors and allowed angular application
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowOrigin",
+        builder => builder.WithOrigins("http://localhost:4200")
+                          .AllowAnyMethod()
+                          .AllowAnyHeader());
+});
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -40,7 +52,7 @@ if (app.Environment.IsDevelopment())
         c.RoutePrefix = string.Empty;
     });
     }
-
+app.UseCors("AllowOrigin");
 app.UseRouting();
 app.UseEndpoints(endpoints =>
 {
