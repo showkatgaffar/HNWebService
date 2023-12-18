@@ -8,17 +8,19 @@ namespace HNWebService.Services
     /// <summary>
     /// Service for interacting with the Hacker News API.
     /// </summary>
-    public class HNApiService
+    public class HNApiService: IHNApiService
         {
         private readonly IDistributedCache _cache;
         private readonly HttpClient _httpClient;
+        private readonly BaseUrls _baseUrls;
         /// <summary>
         /// Injeting the HttpClient service to make the https requests to Hacker News API's
         /// </summary>
-        public HNApiService(HttpClient httpClient, IDistributedCache cache)
+        public HNApiService(HttpClient httpClient, IDistributedCache cache, BaseUrls baseUrls)
             {
             _httpClient = httpClient;
             _cache = cache;
+            _baseUrls = baseUrls;
             }   
 
         /// <summary>
@@ -42,7 +44,7 @@ namespace HNWebService.Services
                 else
                     {
                     // get newstories id from this api
-                    var response = await _httpClient.GetStreamAsync($"{_httpClient.BaseAddress}newstories.json");
+                    var response = await _httpClient.GetStreamAsync($"{_baseUrls.BaseAddress}newstories.json");
                     var newestItemsIds = await JsonSerializer.DeserializeAsync<int[]>(response);
 
                     var newestItems = new List<NewestStoriesModel>();
@@ -74,7 +76,7 @@ namespace HNWebService.Services
         /// </summary>
         public async Task<NewestStoriesModel> GetHackerNewsItemByIdAsync(int itemId)
             {
-            var response = await _httpClient.GetFromJsonAsync<NewestStoriesModel>($"item/{itemId}.json");
+            var response = await _httpClient.GetFromJsonAsync<NewestStoriesModel>($"{_baseUrls.BaseAddress}item/{itemId}.json");
             return response;
             }
         }

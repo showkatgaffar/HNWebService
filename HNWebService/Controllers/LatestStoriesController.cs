@@ -12,11 +12,11 @@ namespace HNWebService.Controllers
     [ApiController]
     public class LatestStoriesController : ControllerBase
         {
-        private readonly HNApiService _hnSerivce;
+        private readonly IHNApiService _hnSerivce;
         /// <summary>
         /// Injecting HNApi Service to get the latest stories or newest stories
         /// </summary>
-        public LatestStoriesController(HNApiService hackerNewsService)
+        public LatestStoriesController(IHNApiService hackerNewsService)
             {
             _hnSerivce = hackerNewsService;
             }

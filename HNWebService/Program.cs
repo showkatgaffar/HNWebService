@@ -4,10 +4,11 @@ using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Configuration setup
+builder.Configuration.AddJsonFile("appsettings.json", optional: true);
 
+// Services registration
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(c =>
@@ -17,18 +18,19 @@ builder.Services.AddSwaggerGen(c =>
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     c.IncludeXmlComments(xmlPath);
 });
-// Add Distribution cache mechanism
-builder.Services.AddDistributedMemoryCache(); 
 
-builder.Services.AddHttpClient<HNApiService>(client =>
-{
-    client.BaseAddress = new Uri("https://hacker-news.firebaseio.com/v0/");
-});
+builder.Services.AddTransient<IHNApiService, HNApiService>();
+
+// Read BaseUrls from appsettings.json and configure as a singleton service
+var baseUrls = new BaseUrls();
+builder.Configuration.GetSection("BaseUrls").Bind(baseUrls);
+builder.Services.AddSingleton(baseUrls);
+
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddHttpClient();
+
 var app = builder.Build();
 
-
-
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
     {
     app.UseSwagger();
@@ -42,9 +44,7 @@ if (app.Environment.IsDevelopment())
 app.UseRouting();
 app.UseEndpoints(endpoints =>
 {
-    endpoints.MapControllers(); 
+    endpoints.MapControllers();
 });
-
-app.MapControllers();
 
 app.Run();
